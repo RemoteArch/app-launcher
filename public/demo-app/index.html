@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capacitor Bridge Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f7;
+      color: #333;
+    }
+    header {
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #007aff;
+      margin-bottom: 10px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    button {
+      background-color: #007aff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 15px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+    .error {
+      color: #d32f2f;
+    }
+    .success {
+      color: #388e3c;
+    }
+    img.preview {
+      max-width: 100%;
+      max-height: 300px;
+      margin-top: 15px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Capacitor Bridge Demo</h1>
+    <p>This demo shows how to use the dynamic bridge to access native features from web apps.</p>
+  </header>
+
+  <div class="card">
+    <h2>Geolocation</h2>
+    <button id="getLocationBtn">Get Current Location</button>
+    <div id="locationResult" class="result">Results will appear here</div>
+  </div>
+
+  <div class="card">
+    <h2>Camera</h2>
+    <button id="takePictureBtn">Take Picture</button>
+    <div id="cameraResult" class="result">Results will appear here</div>
+    <img id="imagePreview" class="preview" style="display: none;" />
+  </div>
+
+  <div class="card">
+    <h2>Filesystem</h2>
+    <button id="writeFileBtn">Write Test File</button>
+    <button id="readFileBtn" disabled>Read Test File</button>
+    <div id="fileResult" class="result">Results will appear here</div>
+  </div>
+
+  <div class="card">
+    <h2>Shake Detection</h2>
+    <p>Shake your device to trigger the shake detection!</p>
+    <div id="shakeResult" class="result">Shake events will appear here</div>
+  </div>
+
+  <script>
+    // Initialize event listeners after DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        // Check if running in WebView with AppBridge available
+        const isBridgeAvailable = !!window.AppBridge;
+        console.log('isBridgeAvailable', isBridgeAvailable);
+        if (!isBridgeAvailable) {
+          document.body.insertAdjacentHTML('afterbegin', `
+            <div class="card error">
+              <h2>⚠️ Not Running in App Launcher</h2>
+              <p>This demo needs to run inside the Capacitor App Launcher to access native features.</p>
+            </div>
+          `);
+          return;
+        }
+
+      }, 1000);
+      
+      let testFilePath = null;
+
+      // Geolocation example
+      document.getElementById('getLocationBtn').addEventListener('click', () => {
+        const resultElement = document.getElementById('locationResult');
+        resultElement.textContent = 'Getting location...';
+        resultElement.className = 'result';
+        
+        window.AppBridge.call('getLocation', {}, (error, position) => {
+          if (error) {
+            resultElement.textContent = `Error: ${error.message}`;
+            resultElement.classList.add('error');
+          } else {
+            resultElement.textContent = `Location: ${position.coords.latitude}, ${position.coords.longitude}`;
+            resultElement.classList.add('success');
+          }
+        });
+      });
+
+      // Camera example
+      document.getElementById('takePictureBtn').addEventListener('click', () => {
+        const resultElement = document.getElementById('cameraResult');
+        const imagePreview = document.getElementById('imagePreview');
+        
+        resultElement.textContent = 'Opening camera...';
+        resultElement.className = 'result';
+        imagePreview.style.display = 'none';
+        
+        const options = {
+          quality: 90,
+          allowEditing: false
+        };
+        
+        window.AppBridge.call('takePicture', options, (error, image) => {
+          if (error) {
+            resultElement.textContent = `Error: ${error.message}`;
+            resultElement.classList.add('error');
+          } else {
+            resultElement.textContent = 'Photo captured successfully!';
+            resultElement.classList.add('success');
+            
+            // Display the image
+            if (image.dataUrl) {
+              imagePreview.src = image.dataUrl;
+              imagePreview.style.display = 'block';
+            }
+          }
+        });
+      });
+
+      // Filesystem example
+      document.getElementById('writeFileBtn').addEventListener('click', () => {
+        const resultElement = document.getElementById('fileResult');
+        const readFileBtn = document.getElementById('readFileBtn');
+        
+        resultElement.textContent = 'Writing file...';
+        resultElement.className = 'result';
+        
+        // Create a test file
+        const timestamp = new Date().toISOString();
+        const content = `This is a test file created at ${timestamp}`;
+        testFilePath = 'cache/test-file.txt';
+        
+        const writeOptions = {
+          path: testFilePath,
+          data: content,
+          encoding: 'utf8'
+        };
+        
+        window.AppBridge.call('writeFile', writeOptions, (error, result) => {
+          if (error) {
+            resultElement.textContent = `Error: ${error.message}`;
+            resultElement.classList.add('error');
+          } else {
+            resultElement.textContent = `File written successfully at: ${result?.uri || testFilePath}`;
+            resultElement.classList.add('success');
+            readFileBtn.disabled = false;
+          }
+        });
+      });
+
+      document.getElementById('readFileBtn').addEventListener('click', () => {
+        const resultElement = document.getElementById('fileResult');
+        
+        if (!testFilePath) {
+          resultElement.textContent = 'Please write a file first';
+          resultElement.className = 'result error';
+          return;
+        }
+        
+        resultElement.textContent = 'Reading file...';
+        resultElement.className = 'result';
+        
+        const readOptions = {
+          path: testFilePath,
+          encoding: 'utf8'
+        };
+        
+        window.AppBridge.call('readFile', readOptions, (error, fileContent) => {
+          if (error) {
+            resultElement.textContent = `Error: ${error.message}`;
+            resultElement.classList.add('error');
+          } else {
+            resultElement.textContent = `File content: ${fileContent.data}`;
+            resultElement.classList.add('success');
+          }
+        });
+      });
+
+      // Set up shake detection
+      let shakeCount = 0;
+      window.AppBridge.call('addShakeListener', {}, (error) => {
+        if (error) {
+          const shakeResult = document.getElementById('shakeResult');
+          shakeResult.textContent = `Error setting up shake detection: ${error.message}`;
+          shakeResult.className = 'result error';
+        }
+      });
+      
+      // Listen for device motion events directly in browser as fallback
+      window.addEventListener('devicemotion', (event) => {
+        const acceleration = event.accelerationIncludingGravity;
+        if (!acceleration) return;
+        
+        const threshold = 15;
+        const x = acceleration.x;
+        const y = acceleration.y;
+        const z = acceleration.z;
+        
+        if (Math.abs(x) > threshold || Math.abs(y) > threshold || Math.abs(z) > threshold) {
+          const shakeResult = document.getElementById('shakeResult');
+          shakeCount++;
+          shakeResult.textContent = `Shake detected! (Count: ${shakeCount})`;
+          shakeResult.className = 'result success';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
