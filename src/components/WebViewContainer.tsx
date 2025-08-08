@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { webViewBridge } from '../services/WebViewBridge';
+import app from '../services/appPlugin';
 import { shakeDetector } from '../services/ShakeDetector';
 
 interface WebViewContainerProps {
@@ -22,23 +22,45 @@ const WebViewContainer: React.FC<WebViewContainerProps> = ({
   useEffect(() => {
     if (!webViewRef.current) return;
 
-    // Set the WebView reference in the bridge
-    webViewBridge.setWebViewRef({
-      postMessage: (message: string) => {
-        // Send message to the iframe content
-        if (webViewRef.current?.contentWindow) {
-          webViewRef.current.contentWindow.postMessage(message, '*');
-        }
-      }
-    });
-
     // Listen for messages from the WebView
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       // Only process messages from our WebView
       if (event.source === webViewRef.current?.contentWindow) {
         if (typeof event.data === 'string') {
-          webViewBridge.handleMessage(event.data);
+          try {
+            const parsedMessage = JSON.parse(event.data);
+            const { requestId, action, args = {} } = parsedMessage;
+            console.log('Received message:', parsedMessage , app);
+            if (!requestId || !action) return;
+
+            try {
+              const result = await (app as any)[action](args);
+              sendResponse(requestId, result);
+            } catch (error: any) {
+              sendResponse(requestId, null, { 
+                message: error.message || 'Unknown error',
+                code: error.code 
+              });
+            }
+          } catch (error) {
+            console.error('Error processing WebView message:', error);
+          }
         }
+      }
+    };
+
+    // Function to send response back to WebView
+    const sendResponse = (requestId: string, result?: any, error?: { message: string; code?: string }) => {
+      if (!webViewRef.current?.contentWindow) {
+        console.error('WebView reference not set');
+        return;
+      }
+
+      try {
+        const response = JSON.stringify({ requestId, result, error });
+        webViewRef.current.contentWindow.postMessage(response, '*');
+      } catch (error) {
+        console.error('Error sending response to WebView:', error);
       }
     };
 
@@ -121,10 +143,9 @@ const WebViewContainer: React.FC<WebViewContainerProps> = ({
             }
           }
           
-          // Create a singleton instance and expose it globally
           window.AppBridge = new AppBridgeClass();
-          
-          console.log('App bridge initialized');
+          console.log('App bridge and plugin initialized', window.AppBridge);
+          console.log(window.parent);
         `;
         
         // Inject the script into the iframe

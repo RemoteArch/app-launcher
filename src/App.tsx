@@ -1,26 +1,72 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WebViewContainer from './components/WebViewContainer';
 import AppManager from './components/AppManager';
 import { type WebAppConfig } from './services/AppConfig';
 
+function normalizeUrl(input: string) {
+  try {
+    const decoded = decodeURIComponent(input.trim());
+    // Si l’utilisateur met "www.google.com", ajoute https:// automatiquement
+    if (/^https?:\/\//i.test(decoded)) return decoded;
+    if (/^[\w.-]+\.[a-z]{2,}([/:?#].*)?$/i.test(decoded)) return 'https://' + decoded;
+    return decoded; // laisse passer d’autres schémas si besoin
+  } catch {
+    return input;
+  }
+}
+
 function App() {
   const [selectedApp, setSelectedApp] = useState<WebAppConfig | null>(null);
+  const [directUrl, setDirectUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // Handle app selection
+  // Parse #u=... (prioritaire) puis ?url=... au démarrage
+  useEffect(() => {
+    const applyFromLocation = () => {
+      // 1) Hash en priorité (#u=...)
+      const hash = window.location.hash || '';
+      const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+      let u = hashParams.get('u');
+
+      // 2) Fallback: query (?url=...)
+      if (!u) {
+        const params = new URLSearchParams(window.location.search);
+        const qp = params.get('url');
+        if (qp) u = qp;
+      }
+
+      if (u) {
+        const url = normalizeUrl(u);
+        setDirectUrl(url);
+        setSelectedApp(null);
+      }
+    };
+
+    applyFromLocation();
+
+    // Écoute les changements de hash (deeplink reçu quand l’app est déjà ouverte)
+    const onHashChange = () => applyFromLocation();
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  // Sélection d’une app depuis la liste
   const handleAppSelect = (app: WebAppConfig) => {
     setSelectedApp(app);
+    setDirectUrl(null);
   };
 
-  // Handle WebView errors
-  const handleWebViewError = (error: Error) => {
-    setError(`WebView error: ${error.message}`);
+  // Gestion des erreurs WebView
+  const handleWebViewError = (err: Error) => {
+    setError(`WebView error: ${err.message}`);
     setShowErrorModal(true);
+    // Ne pas garder une URL/app cassée
     setSelectedApp(null);
+    setDirectUrl(null);
   };
 
-  // Close error modal
+  // Fermer la modal d'erreur
   const handleCloseErrorModal = () => {
     setShowErrorModal(false);
     setError(null);
@@ -28,11 +74,10 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
-      {selectedApp ? (
-            <WebViewContainer 
-              url={selectedApp.url} 
-              onError={handleWebViewError}
-            />
+      {directUrl ? (
+        <WebViewContainer url={directUrl} onError={handleWebViewError} />
+      ) : selectedApp ? (
+        <WebViewContainer url={selectedApp.url} onError={handleWebViewError} />
       ) : (
         <AppManager onSelectApp={handleAppSelect} />
       )}
@@ -49,11 +94,11 @@ function App() {
               </div>
               <h3 className="text-lg font-medium text-gray-900">Application Error</h3>
             </div>
-            
+
             <div className="mb-6">
               <p className="text-sm text-gray-600">{error}</p>
             </div>
-            
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={handleCloseErrorModal}
