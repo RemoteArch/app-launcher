@@ -153,23 +153,7 @@ export const app = registerPlugin<AppPlugin>('applauncher', {
 
 (window as any).appPlugin = app;
 
-console.log(app);
+// console.log(app);
 
 // (Optionnel) export * si tu veux réutiliser les types ailleurs
 export default app;
-
-/*
-Exemple d’usage:
-import app from './appPlugin';
-
-await app.createFile({ path: 'docs/hello.txt', data: 'Bonjour !' });
-const { data } = await app.readFile({ path: 'docs/hello.txt' });
-console.log(data);
-await app.deleteFile({ path: 'docs/hello.txt' });
-
-try {
-  await app.execCommand({ command: 'ls' });
-} catch (e) {
-  console.warn(String(e));
-}
-*/

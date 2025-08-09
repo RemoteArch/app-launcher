@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -28,23 +29,32 @@ public class MainActivity extends BridgeActivity {
     if (Intent.ACTION_VIEW.equals(intent.getAction())) {
       Uri uri = intent.getData();
       if (uri != null) {
-        String url = uri.toString();
-        Log.d("AppLauncher", "URL reçue: " + url);
+        String urlToOpen = uri.toString();
 
-        // Si tu veux convertir ton deeplink applauncher://... en https://...
-        // Par ex: applauncher://url?u=https%3A%2F%2Fexample.com
         if ("applauncher".equals(uri.getScheme())) {
           String uParam = uri.getQueryParameter("u");
-          if (uParam != null) {
-            url = uParam;
-          }
+          if (uParam != null) urlToOpen = uParam;
         }
 
-        // Charger l'URL dans la WebView de Capacitor
-        if (bridge != null && bridge.getWebView() != null) {
-          bridge.getWebView().loadUrl(url);
-        }
+      if (bridge != null && bridge.getWebView() != null) {
+        WebView webView = bridge.getWebView();
+
+        // 1) charger la page cible si besoin
+        webView.loadUrl(urlToOpen);
+
+        // 2) injecter ton fichier JS après (par URL locale de Capacitor)
+        String base = bridge.getLocalUrl(); // ex: http://localhost/
+        String scriptUrl = base + "app-launcher.iife.js";
+
+        String injectTag =
+          "(function(){var s=document.createElement('script');" +
+          "s.src='" + scriptUrl + "';" +
+          "s.defer=true;document.head.appendChild(s);}());";
+
+        webView.post(() -> webView.evaluateJavascript(injectTag, null));
       }
     }
   }
+}
+
 }

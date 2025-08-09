@@ -55,6 +55,11 @@ function App() {
   const handleAppSelect = (app: WebAppConfig) => {
     setSelectedApp(app);
     setDirectUrl(null);
+    
+    // Ouvre directement l'URL de l'app sélectionnée dans la page courante
+    if (app && app.url) {
+      window.location.href = app.url;
+    }
   };
 
   // Gestion des erreurs WebView

@@ -69,6 +69,7 @@
       font-style: italic;
     }
   </style>
+  <script src="../app-launcher.iife.js"></script>
 </head>
 <body>
   <h1>Test AppPlugin</h1>
@@ -112,11 +113,11 @@
         if (window.appPlugin) {
           statusElement.textContent = "✅ AppPlugin est disponible - Utilisation de l'API Promise";
           statusElement.className = "status success";
-          initializeAppPluginPromise();
+          initializeAppBridgeCallback(); // On utilise la même fonction mais avec l'API Promise
         }
         // Sinon vérifier si le bridge classique est disponible
         else if (window.AppBridge) {
-          statusElement.textContent = "✅ AppBridge est disponible - Utilisation de l'API Callback";
+          statusElement.textContent = "✅ AppBridge est disponible - Utilisation de l'API Callback (obsolète)";
           statusElement.className = "status success";
           initializeAppBridgeCallback();
         } 
@@ -128,10 +129,10 @@
       }, 1000);
     });
 
-    // Initialiser avec l'API Callback (window.AppBridge)
+    // Initialiser avec l'API Promise (window.appPlugin)
     function initializeAppBridgeCallback() {
       // Gestion des fichiers
-      document.getElementById('createFileBtn').addEventListener('click', () => {
+      document.getElementById('createFileBtn').addEventListener('click', async () => {
         const resultElement = document.getElementById('fileResult');
         const path = document.getElementById('filePath').value;
         let content = document.getElementById('fileContent').value;
@@ -142,24 +143,22 @@
           return;
         }
         
-        // Ajouter un timestamp au contenu
         content += new Date().toISOString();
         
         resultElement.textContent = "Création du fichier...";
         resultElement.className = "result";
         
-        window.AppBridge.call('createFile', { path, data: content }, (error, result) => {
-          if (error) {
-            resultElement.textContent = `Erreur: ${error.message}`;
-            resultElement.className = "result error";
-          } else {
-            resultElement.textContent = `Fichier créé avec succès: ${path}`;
-            resultElement.className = "result success";
-          }
-        });
+        try {
+          const result = await window.appPlugin.createFile({ path, data: content });
+          resultElement.textContent = `Fichier créé avec succès: ${path}`;
+          resultElement.className = "result success";
+        } catch (error) {
+          resultElement.textContent = `Erreur: ${error.message}`;
+          resultElement.className = "result error";
+        }
       });
       
-      document.getElementById('readFileBtn').addEventListener('click', () => {
+      document.getElementById('readFileBtn').addEventListener('click', async () => {
         const resultElement = document.getElementById('fileResult');
         const path = document.getElementById('filePath').value;
         
@@ -172,18 +171,17 @@
         resultElement.textContent = "Lecture du fichier...";
         resultElement.className = "result";
         
-        window.AppBridge.call('readFile', { path }, (error, result) => {
-          if (error) {
-            resultElement.textContent = `Erreur: ${error.message}`;
-            resultElement.className = "result error";
-          } else {
-            resultElement.textContent = `Contenu: ${result.data}`;
-            resultElement.className = "result success";
-          }
-        });
+        try {
+          const result = await window.appPlugin.readFile({ path });
+          resultElement.textContent = `Contenu: ${result.data}`;
+          resultElement.className = "result success";
+        } catch (error) {
+          resultElement.textContent = `Erreur: ${error.message}`;
+          resultElement.className = "result error";
+        }
       });
       
-      document.getElementById('deleteFileBtn').addEventListener('click', () => {
+      document.getElementById('deleteFileBtn').addEventListener('click', async () => {
         const resultElement = document.getElementById('fileResult');
         const path = document.getElementById('filePath').value;
         
@@ -196,40 +194,38 @@
         resultElement.textContent = "Suppression du fichier...";
         resultElement.className = "result";
         
-        window.AppBridge.call('deleteFile', { path }, (error, result) => {
-          if (error) {
-            resultElement.textContent = `Erreur: ${error.message}`;
-            resultElement.className = "result error";
-          } else {
-            resultElement.textContent = `Fichier supprimé avec succès: ${path}`;
-            resultElement.className = "result success";
-          }
-        });
+        try {
+          const result = await window.appPlugin.deleteFile({ path });
+          resultElement.textContent = `Fichier supprimé avec succès: ${path}`;
+          resultElement.className = "result success";
+        } catch (error) {
+          resultElement.textContent = `Erreur: ${error.message}`;
+          resultElement.className = "result error";
+        }
       });
       
       // Raccourcis
-      document.getElementById('createShortcutBtn').addEventListener('click', () => {
+      document.getElementById('createShortcutBtn').addEventListener('click', async () => {
         const resultElement = document.getElementById('shortcutResult');
         
         resultElement.textContent = "Création du raccourci...";
         resultElement.className = "result";
         
-        window.AppBridge.call('createShortcut', {
-          title: 'App Launcher Demo',
-          url: "applauncher://url?u=" + encodeURIComponent(window.location.href)
-        }, (error, result) => {
-          if (error) {
-            resultElement.textContent = `Erreur: ${error.message}`;
-            resultElement.className = "result error";
-          } else {
-            resultElement.textContent = `Résultat: ${result.message || 'Succès'}`;
-            resultElement.className = "result success";
-          }
-        });
+        try {
+          const result = await window.appPlugin.createShortcut({
+            title: 'App Launcher Demo',
+            url: "applauncher://url?u=" + encodeURIComponent(window.location.href)
+          });
+          resultElement.textContent = `Résultat: ${result.message || 'Succès'}`;
+          resultElement.className = "result success";
+        } catch (error) {
+          resultElement.textContent = `Erreur: ${error.message}`;
+          resultElement.className = "result error";
+        }
       });
       
       // Exécution de commandes
-      document.getElementById('execCommandBtn').addEventListener('click', () => {
+      document.getElementById('execCommandBtn').addEventListener('click', async () => {
         const resultElement = document.getElementById('commandResult');
         const command = document.getElementById('commandInput').value;
         
@@ -242,15 +238,14 @@
         resultElement.textContent = `Exécution: ${command}`;
         resultElement.className = "result";
         
-        window.AppBridge.call('execCommand', { command }, (error, result) => {
-          if (error) {
-            resultElement.textContent = `Erreur: ${error.message}`;
-            resultElement.className = "result error";
-          } else {
-            resultElement.textContent = `Sortie:\n${result.output}`;
-            resultElement.className = "result success";
-          }
-        });
+        try {
+          const result = await window.appPlugin.execCommand({ command });
+          resultElement.textContent = `Sortie:\n${result.output}`;
+          resultElement.className = "result success";
+        } catch (error) {
+          resultElement.textContent = `Erreur: ${error.message}`;
+          resultElement.className = "result error";
+        }
       });
     }
   </script>

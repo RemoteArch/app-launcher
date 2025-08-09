@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Angular UMD (Angular 12)</title>
+  <!-- Zone.js requis -->
+  <script src="https://cdn.jsdelivr.net/npm/zone.js@0.11.4/bundles/zone.umd.min.js"></script>
+
+  <!-- RxJS UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/rxjs@6.6.7/bundles/rxjs.umd.min.js"></script>
+
+  <!-- Angular 12 UMD (versions figées) -->
+  <script src="https://cdn.jsdelivr.net/npm/@angular/core@12.2.17/bundles/core.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@angular/common@12.2.17/bundles/common.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@angular/compiler@12.2.17/bundles/compiler.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@angular/platform-browser@12.2.17/bundles/platform-browser.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@angular/platform-browser-dynamic@12.2.17/bundles/platform-browser-dynamic.umd.min.js"></script>
+</head>
+<body>
+  <my-app>Chargement…</my-app>
+
+  <script>
+    const { Component, NgModule } = ng.core;
+    const { BrowserModule } = ng.platformBrowser;
+    const { platformBrowserDynamic } = ng.platformBrowserDynamic;
+
+    // === JS pur sans syntaxe @decorator ===
+    class AppComponent {}
+    Component({ selector: 'my-app', template: '<h1>Hello Angular UMD !</h1>' })(AppComponent);
+
+    class AppModule {}
+    NgModule({
+      imports: [BrowserModule],
+      declarations: [AppComponent],
+      bootstrap: [AppComponent]
+    })(AppModule);
+
+    platformBrowserDynamic().bootstrapModule(AppModule);
+  </script>
+</body>
+</html>
